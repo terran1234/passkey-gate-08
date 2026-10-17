@@ -1,0 +1,18 @@
+{
+    "credentials":  [
+                        {
+                            "id":  "wzVzCh6o2rzAyLtT72UsbURg4LovhW7ggwJC6JGKmO4",
+                            "publicKey":  "pQECAyYgASFYIBd3shO3as5Q9VxcBxXF2FvkZphZNtI0Xb54pmgikMjcIlggulhOuYjG2ZxXEK6f_-shMGWWNZoWl_f1WUO7a4ztsA4",
+                            "counter":  0,
+                            "transports":  [
+                                               "internal"
+                                           ],
+                            "deviceType":  "singleDevice",
+                            "backedUp":  false,
+                            "aaguid":  "08987058-cadc-4b81-b6e1-30de50dcbe96",
+                            "name":  "집 PC 데스크탑",
+                            "createdAt":  "2026-10-17T12:18:44.799Z"
+                        }
+                    ],
+    "owner":  "(임의 식별자, 생략)"
+}
