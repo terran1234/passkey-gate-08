@@ -1,0 +1,16 @@
+# Render 배포 설정 (Blueprint). 값이 비밀이거나 배포 뒤에야 알 수 있는 것은 sync:false 로 두고 Render 화면에서 직접 넣는다.
+services:
+  - type: web
+    name: passkey-gate-08
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/status
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ORIGIN        # 배포된 주소 전체. 예: https://passkey-gate-08.onrender.com  (패스키가 묶이는 주소)
+        sync: false
+      - key: SETUP_CODE    # 처음 패스키를 만들 때 쓰는 초대 코드. 본인만 아는 긴 무작위 값. 저장소에는 넣지 않는다.
+        sync: false

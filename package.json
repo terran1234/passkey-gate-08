@@ -6,6 +6,9 @@
   "scripts": {
     "start": "node server/index.js"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "license": "MIT",
   "dependencies": {
     "@simplewebauthn/browser": "^14.0.0",

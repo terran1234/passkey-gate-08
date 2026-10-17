@@ -82,6 +82,13 @@
   .passkey-list li{border:1px solid var(--border); border-radius:8px; padding:12px 14px; font-size:13px;}
   .passkey-list .pk-name{font-weight:700; font-size:14px;}
   .passkey-list dl{display:grid; grid-template-columns:auto 1fr; gap:2px 12px; margin-top:6px; color:var(--ink-dim);}
+  .panel details.addhere{margin-top:18px; border-top:1px solid var(--border); padding-top:14px;}
+  .panel details.addhere summary{cursor:pointer; font-weight:600; font-size:13.5px;}
+  .panel details.addhere form{margin-top:10px;}
+  .invite-box{margin-top:18px; border-top:1px solid var(--border); padding-top:14px;}
+  .invite-box h4{font-size:14px; margin-bottom:4px;}
+  .panel .invite-box button.ghost{margin-top:4px;}
+  .invite-code{font-family:var(--mono); font-size:22px; font-weight:700; letter-spacing:.12em; background:#fff7ed; border:1px dashed #fb923c; border-radius:8px; padding:10px 14px; margin-top:10px; display:inline-block;}
   .passkey-list .pk-head{display:flex; justify-content:space-between; align-items:center; gap:10px;}
   .panel .passkey-list button.del{margin:0; padding:5px 12px; font-size:12.5px; background:#fff; color:#b91c1c; border:1px solid #fca5a5;}
   .panel .passkey-list button.del:disabled{color:var(--ink-faint); border-color:var(--border); cursor:not-allowed; opacity:1;}
@@ -340,6 +347,16 @@
         <p class="panel-desc">비밀번호를 입력하지 않습니다. 버튼을 누르면 서버가 새 질문을 보내고, 이 기기가 지문·PIN 확인 뒤 개인키로 서명해 답합니다.</p>
         <button id="btn-login" type="button">패스키로 로그인</button>
         <p id="msg-login" class="form-msg" role="status"></p>
+        <details class="addhere">
+          <summary>이 기기에 패스키가 없나요? (새 기기 추가)</summary>
+          <p class="panel-desc">이미 로그인된 기기에서 "다른 기기 추가용 일회용 코드"를 만든 뒤, 그 코드를 여기에 입력하면 이 기기에 패스키를 만들 수 있습니다.</p>
+          <form id="form-addcode" autocomplete="off">
+            <label>일회용 코드 <input id="in-addcode" type="text" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX"></label>
+            <label>패스키 이름 <input id="in-name-addcode" type="text" maxlength="40" placeholder="예: 내 휴대폰" required></label>
+            <button type="submit">이 기기에 패스키 만들기</button>
+          </form>
+          <p id="msg-addcode" class="form-msg" role="status"></p>
+        </details>
       </div>
 
       <div id="passkey-manage" class="panel" hidden>
@@ -352,6 +369,12 @@
           <button type="submit">패스키 추가</button>
         </form>
         <p id="msg-add" class="form-msg" role="status"></p>
+        <div class="invite-box">
+          <h4>다른 기기 추가용 일회용 코드</h4>
+          <p class="panel-desc">패스키가 없는 새 기기(예: 휴대폰)에서 이 페이지를 열고 아래 코드를 입력하면 그 기기에 패스키를 만들 수 있습니다. 5분 동안, 한 번만 쓸 수 있습니다.</p>
+          <button id="btn-invite" type="button" class="ghost">일회용 코드 만들기</button>
+          <p id="invite-code" class="invite-code" hidden></p>
+        </div>
         <button id="btn-logout" type="button" class="ghost">로그아웃</button>
       </div>
     </section>

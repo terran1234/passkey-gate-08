@@ -22,10 +22,37 @@ const pendingChallenges = new Map(); // cookie id -> { challenge, name, setupOk,
 // 초대 코드 무차별 대입 방지: 한 주소에서 5번 틀리면 10분 동안 막는다.
 const setupFails = new Map(); // ip -> { count, until }
 
-function codeMatches(input) {
+function sameSecret(input, secret) {
   const a = Buffer.from(String(input || ''));
-  const b = Buffer.from(SETUP_CODE);
+  const b = Buffer.from(secret);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+const codeMatches = (input) => sameSecret(input, SETUP_CODE);
+
+// 새 기기 추가용 일회용 코드: 로그인한 주인만 만들 수 있고, 5분 동안 한 번만 쓸 수 있다. 한 번에 하나만 유효.
+// 새 휴대폰처럼 아직 패스키가 없어서 로그인할 수 없는 기기에서 패스키를 더하기 위한 것이다. 비밀번호가 아니다.
+const ADD_CODE_TTL_MS = 5 * 60 * 1000;
+const ADD_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 0/O, 1/I 처럼 헷갈리는 글자는 뺀다
+let addCode = null; // { code, expires }
+
+function mintAddCode() {
+  let code = '';
+  for (let i = 0; i < 8; i++) code += ADD_CODE_ALPHABET[crypto.randomInt(ADD_CODE_ALPHABET.length)];
+  addCode = { code, expires: Date.now() + ADD_CODE_TTL_MS };
+  return code;
+}
+const normalizeCode = (s) => String(s || '').trim().toUpperCase().replace(/[\s-]/g, '');
+function addCodeValid(input) {
+  return !!addCode && addCode.expires > Date.now() && sameSecret(normalizeCode(input), addCode.code);
+}
+
+function tooManyFails(ip) {
+  const f = setupFails.get(ip);
+  return !!f && f.until > Date.now();
+}
+function noteFail(ip) {
+  const n = (setupFails.get(ip)?.count || 0) + 1;
+  setupFails.set(ip, { count: n, until: n >= 5 ? Date.now() + 10 * 60 * 1000 : 0 });
 }
 
 function publicView(c) {
@@ -72,19 +99,25 @@ router.post('/register/options', async (req, res) => {
   const name = cleanName(req.body?.name);
   if (!name) return res.status(400).json({ error: 'name-required', message: '패스키 이름은 1~40자로 적어 주세요.' });
 
+  let viaAddCode = false;
   if (first) {
-    const f = setupFails.get(req.ip);
-    if (f && f.until > Date.now()) return res.status(429).json({ error: 'too-many-attempts', message: '초대 코드를 너무 많이 틀렸습니다. 잠시 뒤에 다시 시도하세요.' });
+    if (tooManyFails(req.ip)) return res.status(429).json({ error: 'too-many-attempts', message: '초대 코드를 너무 많이 틀렸습니다. 잠시 뒤에 다시 시도하세요.' });
     if (!codeMatches(req.body?.setupCode)) {
-      const n = (f?.count || 0) + 1;
-      setupFails.set(req.ip, { count: n, until: n >= 5 ? Date.now() + 10 * 60 * 1000 : 0 });
+      noteFail(req.ip);
       logEvent('register-rejected', { reason: 'bad-setup-code' });
       return res.status(403).json({ error: 'bad-setup-code', message: '초대 코드가 맞지 않습니다.' });
     }
     setupFails.delete(req.ip);
   } else if (!currentUser(req)) {
-    // 이미 주인의 패스키가 있으면, 로그인한 사람만 새 패스키를 더할 수 있다.
-    return res.status(401).json({ error: 'unauthorized', message: '패스키를 더하려면 먼저 로그인해야 합니다.' });
+    // 이미 주인의 패스키가 있으면 새 패스키는 (1) 로그인한 사람이거나 (2) 로그인한 주인이 만든 일회용 코드를 가진 기기만 더할 수 있다.
+    if (tooManyFails(req.ip)) return res.status(429).json({ error: 'too-many-attempts', message: '코드를 너무 많이 틀렸습니다. 잠시 뒤에 다시 시도하세요.' });
+    if (!addCodeValid(req.body?.addCode)) {
+      noteFail(req.ip);
+      logEvent('register-rejected', { reason: 'not-logged-in-and-bad-add-code' });
+      return res.status(401).json({ error: 'unauthorized', message: '패스키를 더하려면 로그인하거나, 로그인한 기기에서 만든 일회용 코드가 필요합니다.' });
+    }
+    setupFails.delete(req.ip);
+    viaAddCode = true;
   }
 
   const options = await generateRegistrationOptions({
@@ -102,7 +135,7 @@ router.post('/register/options', async (req, res) => {
   const cid = crypto.randomBytes(16).toString('hex');
   const old = parseCookies(req.headers.cookie)[CHALLENGE_COOKIE];
   if (old) pendingChallenges.delete(old);
-  pendingChallenges.set(cid, { challenge: options.challenge, name, setupOk: first, expires: Date.now() + CHALLENGE_TTL_MS });
+  pendingChallenges.set(cid, { challenge: options.challenge, name, setupOk: first, addCode: viaAddCode ? normalizeCode(req.body.addCode) : null, expires: Date.now() + CHALLENGE_TTL_MS });
   setChallengeCookie(res, cid);
   logEvent('challenge-issued', { challenge: options.challenge, name });
   res.json(options);
@@ -116,7 +149,8 @@ router.post('/register/verify', async (req, res) => {
 
   const data = store.load();
   const first = data.credentials.length === 0;
-  if (first ? !entry.setupOk : !currentUser(req)) return res.status(401).json({ error: 'unauthorized' });
+  const authorized = first ? entry.setupOk : (!!currentUser(req) || (!!entry.addCode && addCodeValid(entry.addCode)));
+  if (!authorized) return res.status(401).json({ error: 'unauthorized' });
 
   let result;
   try {
@@ -152,7 +186,8 @@ router.post('/register/verify', async (req, res) => {
   store.save(data);
   logEvent('credential-stored', { credential: publicView(saved) });
 
-  if (!currentUser(req)) startSession(res, 'owner'); // 처음 등록한 사람은 바로 들어간다
+  if (entry.addCode) addCode = null; // 일회용 코드는 성공하면 바로 폐기
+  if (!currentUser(req)) startSession(res, 'owner'); // 처음 등록했거나 일회용 코드로 추가한 기기는 바로 들어간다
   res.json({ verified: true, credential: publicView(saved) });
 });
 
@@ -232,6 +267,14 @@ router.post('/login/verify', async (req, res) => {
 router.get('/passkeys', requireLogin, (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ passkeys: store.load().credentials.map(publicView), rpID: RP_ID });
+});
+
+// 다른 기기 추가용 일회용 코드 만들기(로그인한 사람만). 값은 응답으로만 주고 기록에는 남기지 않는다.
+router.post('/passkeys/invite', requireLogin, (req, res) => {
+  const code = mintAddCode();
+  logEvent('add-code-issued', { expiresInSeconds: ADD_CODE_TTL_MS / 1000 });
+  res.set('Cache-Control', 'no-store');
+  res.json({ code: `${code.slice(0, 4)}-${code.slice(4)}`, expiresInSeconds: ADD_CODE_TTL_MS / 1000 });
 });
 
 // 패스키 지우기(로그인한 사람만). 지우면 그 패스키로는 더 이상 로그인할 수 없다.

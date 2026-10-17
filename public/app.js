@@ -74,6 +74,7 @@
       show('vault-items', st.loggedIn);
       show('passkey-manage', st.loggedIn);
       if (!st.loggedIn) {
+        $('invite-code').hidden = true; $('invite-code').textContent = '';
         $('vault-status').textContent = '로그인하지 않았습니다. 비공개 자료를 서버에 요청해 보면 거절됩니다.';
         // 로그인하지 않은 채 요청해 보면 서버가 401로 거절한다는 것을 화면에도 보여 준다.
         return api('/api/vault').then(function (v) { $('vault-status').textContent = '로그인하지 않았습니다 (서버 응답 ' + v.status + ')'; });
@@ -122,6 +123,23 @@
     register({ name: $('in-name-add').value }, $('msg-add'), e.target.querySelector('button'))
       .then(function () { $('in-name-add').value = ''; });
   });
+  // 새 기기 추가: 로그인한 기기에서 일회용 코드를 만들고, 패스키가 없는 새 기기에서 그 코드로 패스키를 만든다.
+  var inviteTimer = null;
+  $('btn-invite').addEventListener('click', function () {
+    var box = $('invite-code');
+    api('/api/passkeys/invite', { method: 'POST', body: {} }).then(function (r) {
+      if (r.status !== 200) { box.hidden = false; box.textContent = '코드를 만들지 못했습니다 (' + r.status + ')'; return; }
+      box.hidden = false; box.textContent = r.data.code;
+      clearTimeout(inviteTimer);
+      inviteTimer = setTimeout(function () { box.hidden = true; box.textContent = ''; }, r.data.expiresInSeconds * 1000);
+    });
+  });
+  $('form-addcode').addEventListener('submit', function (e) {
+    e.preventDefault();
+    register({ name: $('in-name-addcode').value, addCode: $('in-addcode').value }, $('msg-addcode'), e.target.querySelector('button'))
+      .then(function () { $('in-addcode').value = ''; });
+  });
+
   // 로그인: 질문 받기 → 기기가 개인키로 서명 → 서명 보내기. 서버가 공개키로 확인해야 세션이 생긴다.
   $('btn-login').addEventListener('click', function (e) {
     var btn = e.target, msg = $('msg-login');
