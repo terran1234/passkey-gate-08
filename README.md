@@ -12,7 +12,7 @@
 |---|---|---|
 | 1 | 무엇을 잠글지 가르기 (공개/비공개 분리) | 구현 + 로컬 검증 완료 |
 | 2 | 패스키 등록 | 구현 + 가상 기기로 검증 완료 · **실제 기기 등록 증거는 아직** (C26) |
-| 3 | 패스키로 로그인 | 구현 + 가상 기기로 검증 완료 · 실제 기기 로그인 증거는 아직 |
+| 3 | 패스키로 로그인 | 구현 + 가상 기기 검증 + 실제 기기(Windows Hello) 로그인 확인 완료 |
 | 4~5 | 두 번째 패스키 · 남의 패스키 거절 | 대기 |
 
 ## 소스에서 찾는 위치
@@ -244,13 +244,28 @@ POST /api/logout → 200 {"ok":true}
 GET  /api/vault  (로그아웃 전에 쓰던 세션 값 그대로, 값은 가림) → 401 {"error":"unauthorized"}
 ```
 
+### 실제 기기로 로그인한 결과 (2026-10-17, `http://localhost:3000`)
+
+위 가상 기기 확인과 별도로, 카드 2에서 Windows Hello 로 등록한 내 패스키로 실제 로그인했습니다. 서버 기록: [evidence/card3-real-device-events.jsonl](evidence/card3-real-device-events.jsonl)
+
+```
+12:40:46  login-challenge-issued   challenge: 0I-Z-jOq5ejwQym462N1MZEViMI32nMTo_SfEe7zX3Q
+12:40:49  login-request-body       POST /api/login/verify 로 받은 본문
+12:40:49  login-success            서명 확인 성공 → 세션 발급
+```
+
+- 서버가 낸 질문과, 기기가 서명한 `clientDataJSON` 안의 질문이 **같은 값**입니다 (`0I-Z-jOq…`). `type` 은 `webauthn.get`, `origin` 은 `http://localhost:3000` 입니다.
+- 받은 본문의 키는 `id, rawId, response, type, clientExtensionResults, authenticatorAttachment` 와 `response` 안의 `authenticatorData, clientDataJSON, signature, userHandle` 뿐이고, 개인키나 비밀번호가 들어갈 자리가 없습니다. 패스키 `id` 는 카드 2에서 서버에 저장된 `wzVzCh6o…` 와 같습니다.
+- 서버 기록에는 세션 값이 없습니다 (`sid=` 검색 결과 없음).
+- 로그인 뒤 화면에 비공개 자료 3개와 등록된 패스키 목록이 열렸습니다.
+
 ### 막혔을 때 확인 순서 (서명이 늘 통과할 때)
 1. 질문을 서버에 보관하는지 → `pendingChallenges` (화면이 들고 있는 값을 믿지 않음)
 2. 서명 확인 결과를 실제로 쓰는지 → `result.verified` 가 아니면 401
 3. 일부러 틀린 서명을 보내 거절되는지 → 위 [실패] 기록
 
 ### 아직 남은 것
-- 실제 내 기기(Windows Hello)로 로그인해 보고, 그 서버 기록을 증거로 남기기.
+- 실제 기기 창에서 로그인 **취소**해 보기, 실제 기기로 **로그아웃 후 재로그인** 해 보기 (기록으로 남기지 않았으므로 증거로 쓰지 않습니다).
 
 ## 실행
 
