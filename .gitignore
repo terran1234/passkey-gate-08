@@ -2,3 +2,7 @@ node_modules/
 .env
 *.log
 .claude/
+# 서버가 실행하며 만드는 데이터(등록된 패스키·기록). 증거는 evidence/ 로 옮겨서 남긴다.
+data/store.json
+data/store.json.tmp
+data/events.jsonl

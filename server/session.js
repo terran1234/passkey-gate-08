@@ -37,4 +37,4 @@ function requireLogin(req, res, next) {
   next();
 }
 
-module.exports = { startSession, endSession, currentUser, requireLogin };
+module.exports = { parseCookies, startSession, endSession, currentUser, requireLogin };

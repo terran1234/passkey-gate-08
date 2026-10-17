@@ -67,6 +67,24 @@
   .vault-items h3{font-size:15px; margin-bottom:4px;}
   .vault-items .kind{font-size:11.5px; font-weight:700; color:#9a3412;}
   .vault-items p{font-size:14px; color:var(--ink-dim);}
+  .panel{background:#fff; border:1px solid #fdba74; border-radius:10px; padding:20px 22px; margin-top:16px;}
+  .panel h3{font-size:15px; margin-bottom:6px;}
+  .panel-desc{font-size:13.5px; color:var(--ink-dim); margin-bottom:12px;}
+  .panel form{display:grid; gap:10px;}
+  .panel label{display:grid; gap:4px; font-size:13px; font-weight:600;}
+  .panel input{font:inherit; font-weight:400; padding:9px 11px; border:1px solid var(--border); border-radius:8px;}
+  .panel button{font:inherit; font-weight:700; padding:10px 14px; border:0; border-radius:8px; background:var(--accent); color:#fff; cursor:pointer;}
+  .panel button.ghost{background:#fff; color:var(--ink-dim); border:1px solid var(--border); margin-top:14px;}
+  .panel button:disabled{opacity:.6; cursor:wait;}
+  .form-msg{font-size:13px; margin-top:10px; min-height:1.4em; color:#9a3412;}
+  .form-msg.ok{color:#0f766e;}
+  .passkey-list{list-style:none; display:grid; gap:10px; margin-bottom:16px;}
+  .passkey-list li{border:1px solid var(--border); border-radius:8px; padding:12px 14px; font-size:13px;}
+  .passkey-list .pk-name{font-weight:700; font-size:14px;}
+  .passkey-list dl{display:grid; grid-template-columns:auto 1fr; gap:2px 12px; margin-top:6px; color:var(--ink-dim);}
+  .passkey-list dt{font-weight:600;}
+  .passkey-list dd{overflow-wrap:anywhere; font-family:var(--mono); font-size:11.5px;}
+  .passkey-list dd.plain{font-family:var(--sans); font-size:13px;}
 
   section{padding:64px 0; border-top:1px solid var(--border); scroll-margin-top:72px;}
   .reveal{opacity:0; transform:translateY(14px); transition:opacity .6s ease, transform .6s ease;}
@@ -302,6 +320,33 @@
         <p id="vault-status" class="lock-status" role="status"></p>
       </div>
       <ul id="vault-items" class="vault-items" hidden></ul>
+
+      <div id="register-first" class="panel" hidden>
+        <h3>처음 패스키 만들기</h3>
+        <p class="panel-desc">비밀번호는 없습니다. 이 기기가 열쇠 한 쌍을 만들고 공개키만 서버로 보냅니다. 처음 한 번은 서버 주인이 정한 <b>초대 코드</b>가 필요합니다.</p>
+        <form id="form-first" autocomplete="off">
+          <label>초대 코드 <input id="in-setup" type="password" required autocomplete="off"></label>
+          <label>패스키 이름 <input id="in-name-first" type="text" maxlength="40" placeholder="예: 내 노트북 Windows Hello" required></label>
+          <button type="submit">패스키 만들기</button>
+        </form>
+        <p id="msg-first" class="form-msg" role="status"></p>
+      </div>
+
+      <div id="need-login" class="panel" hidden>
+        <h3>이미 패스키가 등록되어 있습니다</h3>
+        <p class="panel-desc">패스키로 로그인하는 단계는 다음 카드에서 붙입니다.</p>
+      </div>
+
+      <div id="passkey-manage" class="panel" hidden>
+        <h3>등록된 패스키</h3>
+        <ul id="passkey-list" class="passkey-list"></ul>
+        <form id="form-add" autocomplete="off">
+          <label>새 패스키 이름 <input id="in-name-add" type="text" maxlength="40" placeholder="예: 휴대폰" required></label>
+          <button type="submit">패스키 추가</button>
+        </form>
+        <p id="msg-add" class="form-msg" role="status"></p>
+        <button id="btn-logout" type="button" class="ghost">로그아웃</button>
+      </div>
     </section>
 
   </main>
@@ -338,33 +383,6 @@
   document.addEventListener('scroll', onScroll, {passive:true});
   onScroll();
 
-  // private area: ask the server; it answers 401 unless logged in with a passkey
-  function loadVault(){
-    var status = document.getElementById('vault-status');
-    fetch('/api/vault', {credentials:'same-origin'}).then(function(r){
-      if(r.status === 401 || r.status === 403){
-        status.textContent = '로그인하지 않았습니다 (서버 응답 ' + r.status + ')';
-        return null;
-      }
-      return r.json();
-    }).then(function(data){
-      if(!data) return;
-      var ul = document.getElementById('vault-items');
-      ul.innerHTML = '';
-      data.items.forEach(function(it){
-        var li = document.createElement('li');
-        var k = document.createElement('div'); k.className = 'kind'; k.textContent = it.kind;
-        var h = document.createElement('h3'); h.textContent = it.title;
-        var p = document.createElement('p'); p.textContent = it.body;
-        li.appendChild(k); li.appendChild(h); li.appendChild(p);
-        ul.appendChild(li);
-      });
-      document.getElementById('vault-locked').hidden = true;
-      ul.hidden = false;
-    }).catch(function(){ status.textContent = '서버에 연결하지 못했습니다'; });
-  }
-  loadVault();
-
   // explicit keyboard toggle for details/summary (defense-in-depth alongside native behavior)
   document.querySelectorAll('details.more summary').forEach(function(s){
     s.addEventListener('keydown', function(e){
@@ -376,5 +394,7 @@
     });
   });
 </script>
+<script src="/vendor/simplewebauthn-browser.js"></script>
+<script src="/app.js"></script>
 </body>
 </html>

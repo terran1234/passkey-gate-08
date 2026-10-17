@@ -1,0 +1,18 @@
+{
+  "owner": "(임의 식별자, 생략)",
+  "credentials": [
+    {
+      "id": "vfdD08zUuBnkftwoagBdRjyFunrD1GedtZgJcLZQ-zU",
+      "publicKey": "pQECAyYgASFYIA0627qGU_loqSYheRhhfHVO2CXrjcucqkWDRCT_E8-QIlggHKXbJ9v_lOnuuGn9s54qh2o14_V8QCuvxIZ7hKu-pbc",
+      "counter": 1,
+      "transports": [
+        "internal"
+      ],
+      "deviceType": "singleDevice",
+      "backedUp": false,
+      "aaguid": "01020304-0506-0708-0102-030405060708",
+      "name": "시험용 가상 기기",
+      "createdAt": "2026-10-17T11:40:58.151Z"
+    }
+  ]
+}

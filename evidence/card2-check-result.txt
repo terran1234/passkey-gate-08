@@ -1,0 +1,61 @@
+# 카드 2 확인 결과 (가상 인증기 사용)
+# 실행 시각: 2026-10-17T11:40:57.973Z
+
+## 등록용 질문(challenge) 발급 — 두 번 요청
+요청 1 challenge: a6YUVrNsnaW64Ty1tf9X5fDuNretdaTIfKk-gklm6fM
+요청 2 challenge: b5OkPgKZMAMV75WqL4B0gbVHZtc9CQidfHShqIiPt80
+통과  C19 서버가 질문(challenge)을 만들어 보낸다
+통과  C20 요청마다 질문 값이 다르다
+
+통과  초대 코드가 틀리면 거절(403) — status 403
+통과  로그인 전 패스키 목록 요청은 401 — status 401
+
+## 등록 취소
+화면 안내: 등록을 취소했습니다. 아무것도 저장되지 않았습니다.
+통과  C25 취소하면 화면에 안내가 나온다
+통과  C25 취소하면 서버에 아무것도 저장되지 않는다 — {"registered":false,"loggedIn":false}
+
+## 패스키 등록
+통과  C21 등록이 끝나면 서버에 공개키가 저장된다
+통과  C24 패스키에 알아볼 수 있는 이름이 붙는다 — 시험용 가상 기기
+통과  C24 목록 화면에 이름이 보인다
+
+## 서버로 간 등록 요청 본문 (POST /api/register/verify)
+{
+  "id": "vfdD08zUuBnkftwoagBdRjyFunrD1GedtZgJcLZQ-zU",
+  "rawId": "vfdD08zUuBnkftwoagBdRjyFunrD1GedtZgJcLZQ-zU",
+  "response": {
+    "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVikSZYN5YgOjGh0NBcPZHZg…(길이 259, 생략)",
+    "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiVXZvWHpH…(길이 183, 생략)",
+    "transports": [
+      "internal"
+    ],
+    "publicKeyAlgorithm": -7,
+    "publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEDTrbuoZT-WipJiF5GGF8dU7YJeuNy5yqRYNEJP8Tz5Acpdsn2_-U6e64af2zniqHajXj9XxAK6_EhnuEq76ltw",
+    "authenticatorData": "SZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMdl2NFAAAAAQECAwQFBgcI…(길이 219, 생략)"
+  },
+  "type": "public-key",
+  "clientExtensionResults": {
+    "credProps": {
+      "rk": true
+    }
+  },
+  "authenticatorAttachment": "platform"
+}
+clientDataJSON 풀이: {"type":"webauthn.create","challenge":"UvoXzG2HVNbO75Z8T_TVN5nO7VbzQnKXWvuoesPD-ZU","origin":"http://localhost:3100","crossOrigin":false}
+본문의 키: id, rawId, response, type, clientExtensionResults, authenticatorAttachment / response 의 키: attestationObject, clientDataJSON, transports, publicKeyAlgorithm, publicKey, authenticatorData
+통과  C23 요청 본문에 개인키가 없다 — 본문 키 확인
+통과  질문이 서버가 낸 값 그대로 돌아왔다
+
+## 가상 인증기(기기) 안에 있는 것
+기기 안 패스키 수: 1, 개인키 보관 여부: 기기 안에만 있음(서버로 보내지 않음)
+통과  개인키는 기기 안에만 있다
+통과  서버에는 공개키만 저장된다
+통과  쓴 질문은 다시 통하지 않는다(재전송 거절) — status 400 challenge-expired-or-used
+같은 기기로 한 번 더 등록: 이 기기에는 이미 이 사이트의 패스키가 등록되어 있습니다.
+통과  같은 기기로 두 번 등록하면 안내가 나온다
+
+서버 기록 11줄을 evidence/card2-server-events.jsonl 에, 저장된 값을 evidence/card2-server-store.json 에 남겼다.
+종류: challenge-issued, register-rejected, register-cancelled, register-request-body, credential-stored
+
+전부 통과 (15건)
