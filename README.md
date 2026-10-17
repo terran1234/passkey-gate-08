@@ -163,6 +163,10 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
+![실제 기기로 등록한 패스키 목록](evidence/card2-real-passkey-list.png)
+
+화면의 "만든 곳"이 `Windows Hello · 이 기기에만 있는 패스키` 로 나오고, 서버에 저장된 공개키와 패스키 ID가 함께 보입니다.
+
 - **C26 저장 위치: 기기 자체 — Windows Hello.** `aaguid` `08987058-cadc-4b81-b6e1-30de50dcbe96` 은 Windows Hello 의 인증기 식별값이고, `transports: ["internal"]`(기기 내부), `authenticatorAttachment: "platform"`(기기에 붙은 인증기), `deviceType: "singleDevice"` + `backedUp: false`(다른 기기로 동기화되지 않음)가 모두 같은 결론입니다. 구글 비밀번호 관리자나 보안 키가 아닙니다.
 - **C23 (실제 요청)**: 서버가 받은 본문의 키는 `id, rawId, response, type, clientExtensionResults, authenticatorAttachment` 와 `response` 안의 `attestationObject, clientDataJSON, transports, publicKeyAlgorithm, publicKey, authenticatorData` 뿐이고, 본문 전체에 `private` 이라는 글자가 없습니다.
 - `clientDataJSON` 풀이: `{"type":"webauthn.create","challenge":"QrAwRrbI…","origin":"http://localhost:3000"}` — 서버가 낸 질문(`challenge-issued` 기록의 값)과 같습니다.
@@ -171,8 +175,6 @@ Content-Type: application/json; charset=utf-8
 ### 아직 남은 것
 - 실제 기기 창에서 **취소**해 보기 (앱 안 브라우저로 시도했을 때 서버에 `register-cancelled` 가 한 번 기록됐지만, 사람이 직접 취소한 것인지 확인하지 못해 증거로 쓰지 않습니다).
 - 패스키는 접속 주소(RP ID)에 묶이므로, `localhost` 에서 만든 패스키는 배포 주소에서 쓸 수 없습니다. 제출용 증거는 배포 주소에서 다시 등록해 남깁니다.
-- 브라우저에 보이는 목록 화면의 실제 캡처 (지금 있는 `card2-passkey-list.png` 는 가상 기기 화면).
-
 ### 막혔을 때 확인 순서
 1. 패스키 창이 안 뜸 → 주소가 https 인지 (개발 중에는 `localhost` 만 예외)
 2. 브라우저·기기가 패스키를 지원하는지
