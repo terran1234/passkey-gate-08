@@ -1,0 +1,25 @@
+# 카드 1 증거: 로그인(쿠키) 없이 보낸 요청과 응답
+# 실행 시각: 2026-10-17 20:32:31
+
+## 1) 비공개 자료를 서버에 직접 요청
+$ curl.exe -i http://localhost:3000/api/vault
+HTTP/1.1 401 Unauthorized
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 24
+ETag: W/"18-gH7/fIZxPCVRh6TuPVNAgHt/40I"
+Date: Sat, 17 Oct 2026 11:32:31 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":"unauthorized"}
+
+## 2) 로그인 없이 받은 페이지 소스에 비공개 내용이 있는지 검색 (전부 False여야 통과)
+$ curl.exe -s http://localhost:3000/ 응답 본문에서 data/vault.json 의 제목·본문을 검색
+  '(예시) 패스키 실습 메모...' 포함 여부: False
+  '만들어 넣은 예시 내용입니...' 포함 여부: False
+  '(예시) 지원하려는 곳 A...' 포함 여부: False
+  '가상의 회사 이름입니다. ...' 포함 여부: False
+  '(예시) 이번 주 회고...' 포함 여부: False
+  '잘한 점 하나, 막힌 점 ...' 포함 여부: False
+  받은 페이지 소스 길이: 20792 글자
