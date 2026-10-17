@@ -234,6 +234,23 @@ router.get('/passkeys', requireLogin, (req, res) => {
   res.json({ passkeys: store.load().credentials.map(publicView), rpID: RP_ID });
 });
 
+// 패스키 지우기(로그인한 사람만). 지우면 그 패스키로는 더 이상 로그인할 수 없다.
+// 마지막 하나는 지울 수 없다: 지우면 아무도 들어올 수 없게 되기 때문이다.
+// (모든 기기를 잃은 경우의 복구는 서버 주인이 data/store.json 을 지워 초대 코드 등록을 다시 여는 것 — README 참고)
+router.delete('/passkeys/:id', requireLogin, (req, res) => {
+  const data = store.load();
+  const i = data.credentials.findIndex((c) => c.id === req.params.id);
+  if (i < 0) return res.status(404).json({ error: 'not-found', message: '그런 패스키가 없습니다.' });
+  if (data.credentials.length <= 1) {
+    logEvent('passkey-delete-refused', { reason: 'last-passkey', id: req.params.id });
+    return res.status(409).json({ error: 'last-passkey', message: '마지막 패스키는 지울 수 없습니다. 지우면 아무도 들어올 수 없게 됩니다. 먼저 다른 패스키를 추가하세요.' });
+  }
+  const [removed] = data.credentials.splice(i, 1);
+  store.save(data);
+  logEvent('passkey-deleted', { id: removed.id, name: removed.name, remaining: data.credentials.length });
+  res.json({ deleted: true, name: removed.name, remaining: data.credentials.length });
+});
+
 router.post('/logout', (req, res) => {
   endSession(req, res);
   res.json({ ok: true });

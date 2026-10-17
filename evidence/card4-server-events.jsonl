@@ -1,0 +1,7 @@
+{"t":"2026-10-17T12:44:07.410Z","type":"login-success","credentialId":"ORA2yo2w3Au2CE3k_uDF6WcteUz_KPpwjNANdd48iMw","name":"휴대폰 A"}
+{"t":"2026-10-17T12:44:07.419Z","type":"login-success","credentialId":"1sismAeb_TAp0QVn_1wGrUin7RuVncrRhGh6sQFBLAo","name":"노트북 B"}
+{"t":"2026-10-17T12:44:07.502Z","type":"passkey-deleted","id":"ORA2yo2w3Au2CE3k_uDF6WcteUz_KPpwjNANdd48iMw","name":"휴대폰 A","remaining":1}
+{"t":"2026-10-17T12:44:07.598Z","type":"login-success","credentialId":"1sismAeb_TAp0QVn_1wGrUin7RuVncrRhGh6sQFBLAo","name":"노트북 B"}
+{"t":"2026-10-17T12:44:07.611Z","type":"login-rejected","reason":"unknown-credential"}
+{"t":"2026-10-17T12:44:07.619Z","type":"login-success","credentialId":"1sismAeb_TAp0QVn_1wGrUin7RuVncrRhGh6sQFBLAo","name":"노트북 B"}
+{"t":"2026-10-17T12:44:07.622Z","type":"passkey-delete-refused","reason":"last-passkey","id":"1sismAeb_TAp0QVn_1wGrUin7RuVncrRhGh6sQFBLAo"}

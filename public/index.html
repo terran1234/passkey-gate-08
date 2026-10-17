@@ -82,6 +82,9 @@
   .passkey-list li{border:1px solid var(--border); border-radius:8px; padding:12px 14px; font-size:13px;}
   .passkey-list .pk-name{font-weight:700; font-size:14px;}
   .passkey-list dl{display:grid; grid-template-columns:auto 1fr; gap:2px 12px; margin-top:6px; color:var(--ink-dim);}
+  .passkey-list .pk-head{display:flex; justify-content:space-between; align-items:center; gap:10px;}
+  .panel .passkey-list button.del{margin:0; padding:5px 12px; font-size:12.5px; background:#fff; color:#b91c1c; border:1px solid #fca5a5;}
+  .panel .passkey-list button.del:disabled{color:var(--ink-faint); border-color:var(--border); cursor:not-allowed; opacity:1;}
   .passkey-list dt{font-weight:600;}
   .passkey-list dd{overflow-wrap:anywhere; font-family:var(--mono); font-size:11.5px;}
   .passkey-list dd.plain{font-family:var(--sans); font-size:13px;}
@@ -341,7 +344,9 @@
 
       <div id="passkey-manage" class="panel" hidden>
         <h3>등록된 패스키</h3>
+        <p id="list-hint" class="panel-desc"></p>
         <ul id="passkey-list" class="passkey-list"></ul>
+        <p id="msg-list" class="form-msg" role="status"></p>
         <form id="form-add" autocomplete="off">
           <label>새 패스키 이름 <input id="in-name-add" type="text" maxlength="40" placeholder="예: 휴대폰" required></label>
           <button type="submit">패스키 추가</button>

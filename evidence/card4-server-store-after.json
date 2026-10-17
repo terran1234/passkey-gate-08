@@ -1,0 +1,18 @@
+{
+  "owner": "(임의 식별자, 생략)",
+  "credentials": [
+    {
+      "id": "1sismAeb_TAp0QVn_1wGrUin7RuVncrRhGh6sQFBLAo",
+      "publicKey": "pQECAyYgASFYICwq_lhGF30cvoeifoHzX2jGHOBME19Mev2v0XmEzzuEIlggkduRasGfbn2fzYY10wGmv03SzjJ4LFQrEhKuOUtl3pI",
+      "counter": 4,
+      "transports": [
+        "internal"
+      ],
+      "deviceType": "singleDevice",
+      "backedUp": false,
+      "aaguid": "01020304-0506-0708-0102-030405060708",
+      "name": "노트북 B",
+      "createdAt": "2026-10-17T12:44:07.316Z"
+    }
+  ]
+}

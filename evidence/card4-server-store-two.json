@@ -1,0 +1,31 @@
+{
+  "owner": "(임의 식별자, 생략)",
+  "credentials": [
+    {
+      "id": "ORA2yo2w3Au2CE3k_uDF6WcteUz_KPpwjNANdd48iMw",
+      "publicKey": "pQECAyYgASFYIKDSHsk1YGK5jfOpqgUPLG3gjpA_3I0eJl0kNoBzgcrZIlgg_BO6FC1p-A0tDjf_kxmeFoo4a0dGNcLcsAKHoG_Z4DI",
+      "counter": 1,
+      "transports": [
+        "internal"
+      ],
+      "deviceType": "singleDevice",
+      "backedUp": false,
+      "aaguid": "01020304-0506-0708-0102-030405060708",
+      "name": "휴대폰 A",
+      "createdAt": "2026-10-17T12:44:07.274Z"
+    },
+    {
+      "id": "1sismAeb_TAp0QVn_1wGrUin7RuVncrRhGh6sQFBLAo",
+      "publicKey": "pQECAyYgASFYICwq_lhGF30cvoeifoHzX2jGHOBME19Mev2v0XmEzzuEIlggkduRasGfbn2fzYY10wGmv03SzjJ4LFQrEhKuOUtl3pI",
+      "counter": 1,
+      "transports": [
+        "internal"
+      ],
+      "deviceType": "singleDevice",
+      "backedUp": false,
+      "aaguid": "01020304-0506-0708-0102-030405060708",
+      "name": "노트북 B",
+      "createdAt": "2026-10-17T12:44:07.316Z"
+    }
+  ]
+}

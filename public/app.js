@@ -33,9 +33,18 @@
 
   function renderPasskeys(list) {
     var ul = $('passkey-list'); ul.innerHTML = '';
+    $('list-hint').textContent = list.length >= 2
+      ? '패스키가 ' + list.length + '개 등록되어 있습니다. 하나를 잃어버려도 다른 하나로 들어올 수 있습니다.'
+      : '패스키가 1개뿐입니다. 이 기기를 잃어버리면 들어올 수 없으니 다른 기기에서 하나 더 추가해 두세요. 마지막 하나는 지울 수 없습니다.';
     list.forEach(function (c) {
       var li = document.createElement('li');
-      var n = document.createElement('div'); n.className = 'pk-name'; n.textContent = c.name; li.appendChild(n);
+      var head = document.createElement('div'); head.className = 'pk-head';
+      var n = document.createElement('div'); n.className = 'pk-name'; n.textContent = c.name; head.appendChild(n);
+      var del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.textContent = '지우기';
+      del.disabled = list.length <= 1;
+      if (del.disabled) del.title = '마지막 패스키는 지울 수 없습니다';
+      del.addEventListener('click', function () { removePasskey(c); });
+      head.appendChild(del); li.appendChild(head);
       var dl = document.createElement('dl');
       row(dl, '만든 곳', c.authenticator + (c.deviceType === 'multiDevice' ? ' · 여러 기기에 동기화되는 패스키' + (c.backedUp ? '(백업됨)' : '') : ' · 이 기기에만 있는 패스키'), true);
       row(dl, '전달 방식', (c.transports && c.transports.length ? c.transports.join(', ') : '알 수 없음'), true);
@@ -43,6 +52,15 @@
       row(dl, '패스키 ID', c.id);
       row(dl, '서버에 저장된 공개키', c.publicKey);
       li.appendChild(dl); ul.appendChild(li);
+    });
+  }
+
+  function removePasskey(c) {
+    var msg = $('msg-list'); msg.className = 'form-msg'; msg.textContent = '';
+    if (!window.confirm('"' + c.name + '" 패스키를 지울까요?\n이 패스키가 들어 있는 기기로는 더 이상 들어올 수 없습니다.')) return;
+    api('/api/passkeys/' + encodeURIComponent(c.id), { method: 'DELETE' }).then(function (r) {
+      if (r.status === 200) { msg.className = 'form-msg ok'; msg.textContent = '"' + r.data.name + '" 패스키를 지웠습니다. 남은 패스키: ' + r.data.remaining + '개'; return refresh(); }
+      msg.textContent = (r.data.message || '지우지 못했습니다') + ' (' + r.status + ')';
     });
   }
 
