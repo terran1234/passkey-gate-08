@@ -1,0 +1,72 @@
+# 카드 3 확인 결과 (가상 인증기 사용)
+# 실행 시각: 2026-10-17T12:38:52.056Z
+
+통과  준비: 패스키 등록 후 로그아웃 상태
+
+## 1. 로그인용 질문 — 두 번 요청
+### 요청 1
+요청: POST /api/login/options  본문 {}  (세션 쿠키 값은 기록에서 가림)
+응답: 200 {"rpId":"localhost","challenge":"F-Lc_S56PxQaqQ7JM_ENkqVVy9kzteSdDP1C32IkOKQ","timeout":60000,"userVerification":"required"}
+
+### 요청 2
+요청: POST /api/login/options  본문 {}  (세션 쿠키 값은 기록에서 가림)
+응답: 200 {"rpId":"localhost","challenge":"9MXDoOHfb7cd58mho3igG5aEBJ2rlFbJlKkCg5bcWmw","timeout":60000,"userVerification":"required"}
+
+요청 1 challenge: F-Lc_S56PxQaqQ7JM_ENkqVVy9kzteSdDP1C32IkOKQ
+요청 2 challenge: 9MXDoOHfb7cd58mho3igG5aEBJ2rlFbJlKkCg5bcWmw
+통과  C27 로그인할 때도 서버가 새 질문을 만들어 보낸다
+통과  C28 로그인 요청마다 질문 값이 다르다
+
+## 2. 실패하는 요청 — 기기가 서명한 답에서 서명 한 글자를 바꿔 보냄
+### 변조한 서명으로 로그인 시도
+요청: POST /api/login/verify  본문 {"id":"VH0cARB8mpPixWMQMW2fLovP7Vkg1uXMghgtKIq8lLg","rawId":"VH0cARB8mpPixWMQMW2fLovP7Vkg1uXMghgtKIq8lLg","response":{"authenticatorData":"SZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMd…(길이 50, 생략)","clientDataJSON":"eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxl…(길이 179, 생략)","signature":"MEUCIGJ2945DVu-nitLzBWQlO0fDBdTMMy-7Ti69…(길이 95, 생략)","userHandle":"C6U2cVp1ceToPDpWgZL3VWdh1IQB58YSL1qo-VU0dTY"},"type":"public-key","clientExtensionResults":{},"authenticatorAttachment":"platform"}  (세션 쿠키 값은 기록에서 가림)
+응답: 401 {"error":"verify-failed","message":"서명을 확인하지 못했습니다."}
+
+그 직후 비공개 자료 요청: 401
+통과  C29 서명이 틀리면 거절한다(401) — status 401
+통과  실패한 로그인 뒤에도 비공개 자료는 열리지 않는다
+
+## 3. 성공하는 요청 — 같은 방식으로 새 질문, 변조 없는 서명
+### 정상 서명으로 로그인
+요청: POST /api/login/verify  본문 {"id":"VH0cARB8mpPixWMQMW2fLovP7Vkg1uXMghgtKIq8lLg","rawId":"VH0cARB8mpPixWMQMW2fLovP7Vkg1uXMghgtKIq8lLg","response":{"authenticatorData":"SZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMd…(길이 50, 생략)","clientDataJSON":"eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxl…(길이 352, 생략)","signature":"MEUCIQDL4ZWIAuwvjquls4OZZPUAE9xljRbZehlc…(길이 95, 생략)","userHandle":"C6U2cVp1ceToPDpWgZL3VWdh1IQB58YSL1qo-VU0dTY"},"type":"public-key","clientExtensionResults":{},"authenticatorAttachment":"platform"}  (세션 쿠키 값은 기록에서 가림)
+응답: 200 {"verified":true,"name":"시험용 가상 기기"}
+
+그 직후 비공개 자료 요청: 200 (항목 3개)
+통과  C29 서명이 맞을 때만 통과한다(200)
+통과  C30 성공(200)과 실패(401) 요청이 나란히 기록됐다
+통과  로그인 뒤 비공개 자료가 열린다
+
+통과  C32 로그인 뒤 사람을 알아보는 것은 세션 쿠키(sid, HttpOnly) — HttpOnly=true SameSite=Strict 값=****
+통과  화면 스크립트는 세션 쿠키를 읽을 수 없다
+
+## 4. 로그아웃
+### 로그아웃
+요청: POST /api/logout  본문 {}  (세션 쿠키 값은 기록에서 가림)
+응답: 200 {"ok":true}
+
+### 로그아웃 전에 쓰던 세션 값으로 다시 요청
+요청: GET /api/vault  (쿠키: sid=**** 가려짐, 로그아웃 전과 같은 값)
+응답: 401 {"error":"unauthorized"}
+
+통과  C33 로그아웃한 뒤 같은 세션 값으로 요청하면 거절(401) — status 401
+## 5. 이미 쓴 질문으로 다시 로그인 시도 (3번의 정상 요청 본문을 그대로 재전송)
+### 같은 답을 다시 보냄
+요청: POST /api/login/verify  본문 {"id":"VH0cARB8mpPixWMQMW2fLovP7Vkg1uXMghgtKIq8lLg","rawId":"VH0cARB8mpPixWMQMW2fLovP7Vkg1uXMghgtKIq8lLg","response":{"authenticatorData":"SZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMd…(길이 50, 생략)","clientDataJSON":"eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxl…(길이 352, 생략)","signature":"MEUCIQDL4ZWIAuwvjquls4OZZPUAE9xljRbZehlc…(길이 95, 생략)","userHandle":"C6U2cVp1ceToPDpWgZL3VWdh1IQB58YSL1qo-VU0dTY"},"type":"public-key","clientExtensionResults":{},"authenticatorAttachment":"platform"}  (세션 쿠키 값은 기록에서 가림)
+응답: 400 {"error":"challenge-expired-or-used","message":"질문이 만료됐거나 이미 사용됐습니다. 처음부터 다시 시도하세요."}
+
+그 직후 비공개 자료 요청: 401
+통과  C31 이미 쓴 질문으로 다시 로그인하면 거절한다 — status 400 challenge-expired-or-used
+통과  재전송 뒤에도 비공개 자료는 열리지 않는다
+통과  쿠키 없이(다른 곳에서) 재전송해도 거절한다 — status 400
+
+## 6. 비밀번호 입력 칸 검사
+화면의 입력 칸: in-setup:text, in-name-first:text, in-name-add:text
+통과  C35 비밀번호를 입력하는 칸이 없다
+
+통과  C34 서버 기록(events)에 세션 값이 없다
+통과  C34 이 결과 파일에도 세션 값이 없다
+
+서버 기록 중 로그인 관련 12줄을 evidence/card3-server-events.jsonl 에 남겼다.
+종류: login-challenge-issued, login-request-body, login-rejected, login-success
+
+전부 통과 (17건)

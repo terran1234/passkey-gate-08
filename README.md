@@ -12,7 +12,8 @@
 |---|---|---|
 | 1 | 무엇을 잠글지 가르기 (공개/비공개 분리) | 구현 + 로컬 검증 완료 |
 | 2 | 패스키 등록 | 구현 + 가상 기기로 검증 완료 · **실제 기기 등록 증거는 아직** (C26) |
-| 3~5 | 로그인 · 두 번째 패스키 · 남의 패스키 거절 | 대기 |
+| 3 | 패스키로 로그인 | 구현 + 가상 기기로 검증 완료 · 실제 기기 로그인 증거는 아직 |
+| 4~5 | 두 번째 패스키 · 남의 패스키 거절 | 대기 |
 
 ## 소스에서 찾는 위치
 
@@ -26,7 +27,10 @@
 | 등록 확인·공개키 저장 (`POST /api/register/verify`) | `server/passkeys.js` → `server/store.js` |
 | 등록 취소 · 패스키 목록 · 로그아웃 | `server/passkeys.js` |
 | 화면의 등록 폼·취소 안내·목록 | `public/app.js` |
-| 로그인(패스키로 들어가기) | 카드 3에서 추가 |
+| 로그인용 질문 만들기 (`POST /api/login/options`) | `server/passkeys.js` |
+| 서명 확인 → 세션 발급 (`POST /api/login/verify`) | `server/passkeys.js` → `server/session.js` 의 `startSession` |
+| 로그아웃 (`POST /api/logout`) | `server/passkeys.js` → `server/session.js` 의 `endSession` |
+| 화면의 "패스키로 로그인" 버튼 | `public/app.js` |
 
 ## 카드 1 — 무엇을 잠글지 먼저 가른다
 
@@ -179,6 +183,74 @@ Content-Type: application/json; charset=utf-8
 1. 패스키 창이 안 뜸 → 주소가 https 인지 (개발 중에는 `localhost` 만 예외)
 2. 브라우저·기기가 패스키를 지원하는지
 3. "이 기기에는 이미 이 사이트의 패스키가 등록되어 있습니다" → 이미 등록된 패스키가 있는 것 (목록 화면에서 확인)
+
+## 카드 3 — 패스키로 들어간다
+
+### 흐름
+1. "패스키로 로그인"을 누르면 서버가 **로그인용 질문**을 새로 만들어 보내고, 확인할 때까지 서버에 보관합니다 (5분, 한 번만 사용).
+2. 기기가 지문/PIN 확인 뒤 **개인키로 질문에 서명**해서 답합니다. 개인키는 기기 밖으로 나가지 않습니다.
+3. 서버가 등록 때 저장해 둔 **공개키로 서명을 확인**합니다. 맞을 때만 세션을 만들어 줍니다. 틀리면 401이고 세션은 생기지 않습니다.
+4. 질문은 꺼내 쓰는 즉시 지워지므로, 같은 답을 다시 보내면 거절됩니다.
+
+**로그인 뒤 사람을 알아보는 것 (C32): 세션.** 서명 확인에 성공하면 서버가 무작위 토큰(32바이트)을 만들어 **서버 메모리**에 적어 두고, 브라우저에는 쿠키 `sid` 로 줍니다. 쿠키는 `HttpOnly`(화면의 스크립트가 못 읽음), `SameSite=Strict`, 배포 환경에서는 `Secure` 이고, 8시간 뒤에는 만료됩니다. 로그아웃하면 서버 목록에서 지워져서 같은 쿠키 값을 다시 보내도 401입니다. (JWT 같은 토큰을 브라우저가 들고 다니는 방식이 아니라, 서버가 기억하는 세션입니다.)
+
+### 통과 기준 확인 결과
+
+가상 인증기로 `node tools/check-card3.mjs` 를 돌린 결과입니다. 전체 기록: [evidence/card3-check-result.txt](evidence/card3-check-result.txt), 서버 쪽 기록: [evidence/card3-server-events.jsonl](evidence/card3-server-events.jsonl)
+
+| 번호 | 기준 | 결과 | 근거 |
+|---|---|---|---|
+| C27 | 로그인 때도 서버가 새 질문을 보냄 | 통과 | `POST /api/login/options` |
+| C28 | 요청마다 질문이 다름 | 통과 | 아래 두 값 |
+| C29 | 저장된 공개키로 서명을 확인한 뒤에만 통과 | 통과 | `verifyAuthenticationResponse`, 아래 성공/실패 |
+| C30 | 성공·실패 요청이 나란히 | 통과 | 아래 |
+| C31 | 쓴 질문 재사용 거절 | 통과 | 아래 |
+| C32 | 로그인 뒤 무엇으로 알아보나 | 세션 쿠키 | 위 설명 |
+| C33 | 로그아웃 뒤 같은 값 재요청 거절 | 통과 | 아래 |
+| C34 | 기록에서 세션·토큰 값이 가려짐 | 통과 | 서버 기록에 세션 값을 쓰지 않고, 결과 파일에서도 검색해 없음을 확인 |
+| C35 | 비밀번호 입력 칸 없음 | 통과 | 화면의 입력 칸은 `text` 3개(초대 코드·패스키 이름 2개)뿐, `type=password` 없음 |
+
+**C28 — 요청마다 다른 질문** (로그아웃 상태에서 연속 두 번 요청)
+```
+요청 1  POST /api/login/options → 200  challenge: F-Lc_S56PxQaqQ7JM_ENkqVVy9kzteSdDP1C32IkOKQ
+요청 2  POST /api/login/options → 200  challenge: 9MXDoOHfb7cd58mho3igG5aEBJ2rlFbJlKkCg5bcWmw
+```
+
+**C29·C30 — 서명 확인에 실패한 요청과 성공한 요청** (둘 다 서버가 새로 낸 질문에 대한 답이고, 기기가 만든 서명 그대로인지 한 글자 바꿨는지만 다릅니다)
+```
+[실패] POST /api/login/verify
+  본문: { id: "VH0cARB8…", response: { authenticatorData, clientDataJSON, signature: "서명 1바이트 변조", userHandle }, type: "public-key" }
+  응답: 401 {"error":"verify-failed","message":"서명을 확인하지 못했습니다."}
+  직후 GET /api/vault → 401        (서버 기록: login-rejected reason=not-verified)
+
+[성공] POST /api/login/verify
+  본문: { id: "VH0cARB8…", response: { …같은 모양, signature: "변조 없음" } }
+  응답: 200 {"verified":true,"name":"시험용 가상 기기"}
+  직후 GET /api/vault → 200 (항목 3개)   (서버 기록: login-success)
+```
+서버는 `id` 로 저장해 둔 공개키를 찾아 서명을 확인하고, 결과가 `verified: true` 일 때만 세션을 만듭니다 (`server/passkeys.js` 의 `/login/verify`).
+
+**C31 — 이미 쓴 질문으로 다시 로그인** (위 성공 요청의 본문을 그대로 다시 전송)
+```
+POST /api/login/verify   본문: 위 성공 요청과 똑같음
+응답: 400 {"error":"challenge-expired-or-used","message":"질문이 만료됐거나 이미 사용됐습니다. 처음부터 다시 시도하세요."}
+직후 GET /api/vault → 401
+쿠키 없이 다른 곳에서 재전송해도 → 400
+```
+
+**C33 — 로그아웃한 뒤 같은 값으로 재요청**
+```
+POST /api/logout → 200 {"ok":true}
+GET  /api/vault  (로그아웃 전에 쓰던 세션 값 그대로, 값은 가림) → 401 {"error":"unauthorized"}
+```
+
+### 막혔을 때 확인 순서 (서명이 늘 통과할 때)
+1. 질문을 서버에 보관하는지 → `pendingChallenges` (화면이 들고 있는 값을 믿지 않음)
+2. 서명 확인 결과를 실제로 쓰는지 → `result.verified` 가 아니면 401
+3. 일부러 틀린 서명을 보내 거절되는지 → 위 [실패] 기록
+
+### 아직 남은 것
+- 실제 내 기기(Windows Hello)로 로그인해 보고, 그 서버 기록을 증거로 남기기.
 
 ## 실행
 

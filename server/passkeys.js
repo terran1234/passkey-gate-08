@@ -1,7 +1,7 @@
 // 패스키 등록 · 목록 · 로그아웃 경로. (로그인은 카드 3에서 추가)
 const crypto = require('crypto');
 const express = require('express');
-const { generateRegistrationOptions, verifyRegistrationResponse } = require('@simplewebauthn/server');
+const { generateRegistrationOptions, verifyRegistrationResponse, generateAuthenticationOptions, verifyAuthenticationResponse } = require('@simplewebauthn/server');
 const { ORIGIN, RP_ID, RP_NAME, SETUP_CODE } = require('./config');
 const store = require('./store');
 const { logEvent } = require('./events');
@@ -47,12 +47,12 @@ function cleanName(raw) {
   return name.length >= 1 && name.length <= 40 ? name : null;
 }
 
-function setChallengeCookie(res, id) {
-  res.setHeader('Set-Cookie', `${CHALLENGE_COOKIE}=${id}; HttpOnly; SameSite=Strict; Path=/api/register; Max-Age=${CHALLENGE_TTL_MS / 1000}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+function setChallengeCookie(res, id, cookie = CHALLENGE_COOKIE, cookiePath = '/api/register') {
+  res.setHeader('Set-Cookie', `${cookie}=${id}; HttpOnly; SameSite=Strict; Path=${cookiePath}; Max-Age=${CHALLENGE_TTL_MS / 1000}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
 }
 
-function takeChallenge(req) {
-  const id = parseCookies(req.headers.cookie)[CHALLENGE_COOKIE];
+function takeChallenge(req, cookie = CHALLENGE_COOKIE) {
+  const id = parseCookies(req.headers.cookie)[cookie];
   const entry = id ? pendingChallenges.get(id) : null;
   if (id) pendingChallenges.delete(id); // 성공이든 실패든 한 번 꺼내면 끝
   if (!entry || entry.expires < Date.now()) return null;
@@ -161,6 +161,71 @@ router.post('/register/cancel', (req, res) => {
   const had = !!takeChallenge(req);
   logEvent('register-cancelled', { hadPendingChallenge: had });
   res.json({ cancelled: true });
+});
+
+// ---- 로그인 ----
+const LOGIN_COOKIE = 'lchal';
+
+// 1) 로그인용 질문 만들기: 요청할 때마다 새 값. 비밀번호 대신 이 질문에 서명해서 답한다.
+router.post('/login/options', async (req, res) => {
+  if (store.load().credentials.length === 0) return res.status(409).json({ error: 'no-passkey', message: '등록된 패스키가 없습니다.' });
+
+  const options = await generateAuthenticationOptions({
+    rpID: RP_ID,
+    userVerification: 'required',
+    // allowCredentials 를 비워 두면 기기가 이 사이트에 저장된 패스키를 스스로 찾는다.
+    // (로그인 전에 누구에게나 패스키 ID 목록을 알려 주지 않기 위해)
+  });
+
+  const cid = crypto.randomBytes(16).toString('hex');
+  const old = parseCookies(req.headers.cookie)[LOGIN_COOKIE];
+  if (old) pendingChallenges.delete(old);
+  pendingChallenges.set(cid, { challenge: options.challenge, expires: Date.now() + CHALLENGE_TTL_MS });
+  setChallengeCookie(res, cid, LOGIN_COOKIE, '/api/login');
+  logEvent('login-challenge-issued', { challenge: options.challenge });
+  res.json(options);
+});
+
+// 2) 기기가 서명한 답을 저장해 둔 공개키로 확인. 확인에 성공한 요청에게만 세션을 준다.
+router.post('/login/verify', async (req, res) => {
+  const entry = takeChallenge(req, LOGIN_COOKIE); // 한 번 꺼내면 폐기: 같은 답을 다시 보내도 통하지 않는다
+  logEvent('login-request-body', { body: req.body });
+  if (!entry) {
+    logEvent('login-rejected', { reason: 'challenge-expired-or-used' });
+    return res.status(400).json({ error: 'challenge-expired-or-used', message: '질문이 만료됐거나 이미 사용됐습니다. 처음부터 다시 시도하세요.' });
+  }
+
+  const data = store.load();
+  const saved = data.credentials.find((c) => c.id === req.body?.id);
+  if (!saved) {
+    logEvent('login-rejected', { reason: 'unknown-credential' });
+    return res.status(401).json({ error: 'unknown-credential', message: '이 서버에 등록된 패스키가 아닙니다.' });
+  }
+
+  let result;
+  try {
+    result = await verifyAuthenticationResponse({
+      response: req.body,
+      expectedChallenge: entry.challenge,
+      expectedOrigin: ORIGIN,
+      expectedRPID: RP_ID,
+      requireUserVerification: true,
+      credential: { id: saved.id, publicKey: Buffer.from(saved.publicKey, 'base64url'), counter: saved.counter, transports: saved.transports },
+    });
+  } catch (e) {
+    logEvent('login-rejected', { reason: 'verify-error', message: e.message });
+    return res.status(401).json({ error: 'verify-failed', message: '서명을 확인하지 못했습니다.' });
+  }
+  if (!result.verified) {
+    logEvent('login-rejected', { reason: 'not-verified' });
+    return res.status(401).json({ error: 'verify-failed', message: '서명을 확인하지 못했습니다.' });
+  }
+
+  saved.counter = result.authenticationInfo.newCounter;
+  store.save(data);
+  startSession(res, 'owner'); // 서명이 맞았을 때만 여기까지 온다
+  logEvent('login-success', { credentialId: saved.id, name: saved.name });
+  res.json({ verified: true, name: saved.name });
 });
 
 // 등록된 패스키 목록(로그인한 사람만)

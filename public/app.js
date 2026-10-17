@@ -104,6 +104,26 @@
     register({ name: $('in-name-add').value }, $('msg-add'), e.target.querySelector('button'))
       .then(function () { $('in-name-add').value = ''; });
   });
+  // 로그인: 질문 받기 → 기기가 개인키로 서명 → 서명 보내기. 서버가 공개키로 확인해야 세션이 생긴다.
+  $('btn-login').addEventListener('click', function (e) {
+    var btn = e.target, msg = $('msg-login');
+    msg.className = 'form-msg'; msg.textContent = '';
+    if (!window.SimpleWebAuthnBrowser || !window.PublicKeyCredential) { msg.textContent = '이 브라우저는 패스키를 지원하지 않습니다.'; return; }
+    btn.disabled = true;
+    api('/api/login/options', { method: 'POST', body: {} }).then(function (o) {
+      if (o.status !== 200) { msg.textContent = o.data.message || ('로그인을 시작하지 못했습니다 (' + o.status + ')'); return; }
+      return window.SimpleWebAuthnBrowser.startAuthentication({ optionsJSON: o.data }).then(function (assertion) {
+        return api('/api/login/verify', { method: 'POST', body: assertion }).then(function (v) {
+          if (v.status === 200 && v.data.verified) return refresh();
+          msg.textContent = (v.data.message || '로그인하지 못했습니다') + ' (' + v.status + ')';
+        });
+      }, function (err) {
+        if (err && err.name === 'NotAllowedError') msg.textContent = '로그인을 취소했습니다. 비공개 자리는 열리지 않았습니다.';
+        else msg.textContent = '로그인하지 못했습니다: ' + (err && err.name ? err.name : '알 수 없는 오류');
+      });
+    }).then(function () { btn.disabled = false; }, function () { btn.disabled = false; });
+  });
+
   $('btn-logout').addEventListener('click', function () {
     api('/api/logout', { method: 'POST', body: {} }).then(refresh);
   });
