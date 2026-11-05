@@ -3,8 +3,9 @@
 1번에서 만든 소개 페이지(공개)는 그대로 두고, 맨 아래에 **패스키로 잠그는 비공개 자리**를 붙이는 과제입니다.
 비밀번호는 만들지 않습니다. 비공개 자리에 들어 있는 내용은 모두 **만들어 넣은 예시**이며 실제 개인정보는 없습니다.
 
-- 공개 결과물 주소: (배포 후 기입)
-- 소스 주소: (저장소 생성 후 기입)
+- 공개 결과물 주소: https://passkey-gate-08.onrender.com
+- 소스 주소: https://github.com/terran1234/passkey-gate-08
+- 비공개 자리에 들어 있는 메모·목록·회고는 모두 **만들어 넣은 예시**입니다. 실제 연락처·신분증 번호 같은 개인정보는 없습니다. 첫 화면의 공개 소개(이름·이메일)는 1번 과제에서 공개하기로 정한 범위 그대로입니다.
 
 ## 진행 상황
 
@@ -14,14 +15,16 @@
 | 2 | 패스키 등록 | 구현 + 가상 기기로 검증 완료 · **실제 기기 등록 증거는 아직** (C26) |
 | 3 | 패스키로 로그인 | 구현 + 가상 기기 검증 + 실제 기기(Windows Hello) 로그인 확인 완료 |
 | 4 | 기기를 잃어버렸을 때 (패스키 2개, 하나 삭제) | 구현 + 가상 기기 2대로 검증 완료 · 실제 기기 두 번째 패스키는 아직 |
-| 5 | 남의 패스키 거절 | 대기 |
+| 5 | 남의 패스키 거절 (계정 두 개) | 배포 주소에서 실제 휴대폰으로 확인 완료 |
 
 ## 소스에서 찾는 위치
 
 | 하는 일 | 파일 |
 |---|---|
 | 공개 영역 (누구나 받는 파일) | `public/index.html`, `public/app.js`, `public/evidence/` |
-| 비공개 자료 조회 (`GET /api/vault`) | `server/index.js` |
+| 비공개 자료 조회 (`GET /api/vault`, 세션의 계정 것만) | `server/index.js` |
+| 다른 계정 자료 요청 거절 (`GET /api/accounts/:id/vault` → 403) | `server/index.js` |
+| 계정·패스키·계정별 비공개 자료 저장 | `server/store.js` (`data/store.json`) |
 | 로그인 여부 검사 (없으면 401) | `server/session.js` 의 `requireLogin` |
 | 비공개 자료 원본 (서버에만 있음) | `data/vault.json` |
 | 등록용 질문 만들기 (`POST /api/register/options`) | `server/passkeys.js` |
@@ -354,6 +357,95 @@ GET  /api/vault  (로그아웃 전에 쓰던 세션 값 그대로, 값은 가림
 ### 막혔을 때 확인 순서
 1. 같은 기기에 두 번째가 안 만들어짐 → 이미 등록된 패스키를 제외하도록 서버가 알려 주는 것(`excludeCredentials`)이므로 정상. 다른 기기·인증기에서 등록해 본다.
 2. 구글 비밀번호 관리자에 저장했다면 다른 기기에서도 보이는지 확인한다.
+
+## 카드 5 — 정말 안 열리는지 확인
+
+### 계정 두 개
+배포 주소(`https://passkey-gate-08.onrender.com`)에서 휴대폰으로 계정 두 개를 만들고, 각각 다른 메모를 넣었습니다 (2026-11-05).
+
+| 계정 | 계정 ID | 비공개 자료 |
+|---|---|---|
+| 계정 A | `acc_41210906` | 예시 3개 + `A만의 메모` = 4개 ([화면](evidence/card5-account-a.jpg)) |
+| 계정 B | `acc_f06e1af6` | `(예시) 계정 B 계정의 첫 메모` + `B만의 메모` 2번 = 3개 ([화면](evidence/card5-account-b.jpg)) |
+
+### 남의 자료 요청과 거절 (C37·C38·C39·C40)
+
+**B로 들어가 A의 자료 요청 (C37)** — [화면](evidence/card5-b-asks-a-403.jpg)
+```
+GET /api/accounts/acc_41210906/vault      (계정 B 세션)
+→ 403 {"error":"forbidden","message":"다른 계정의 비공개 자료는 볼 수 없습니다."}
+```
+
+**A로 들어가 B의 자료 요청 (C38, 반대 방향)** — [화면](evidence/card5-a-asks-b-403.jpg)
+```
+GET /api/accounts/acc_f06e1af6/vault      (계정 A 세션)
+→ 403 {"error":"forbidden","message":"다른 계정의 비공개 자료는 볼 수 없습니다."}
+```
+
+**주소에 다른 계정을 적어 보낸 요청 → 그래도 내 자료만 (C40)** — [화면](evidence/card5-b-query-a-own-only.jpg)
+```
+GET /api/vault?account=acc_41210906       (계정 B 세션, 주소에 A를 적음)
+→ 200 {"account":{"id":"acc_f06e1af6","name":"계정 B"},"items":[ B의 메모 3개 ]}
+```
+
+**거절 앞뒤로 반대편 자료 건수가 같음 (C39)**
+- 계정 A 자료: B의 403 요청 **전** 4개(메모 저장 직후 화면의 "이 계정의 메모: 4개") → B의 403 요청 **뒤** A로 들어가 `GET /api/vault` 4개 ([화면](evidence/card5-a-own-vault-after.jpg)). 같음.
+
+**거절을 만드는 소스 (C41)**
+- `server/index.js` 의 `GET /api/accounts/:accountId/vault`: 주소의 계정이 세션의 계정(`currentUser(req).userId`)과 다르면 403.
+- `server/index.js` 의 `GET /api/vault`·`POST /api/vault`: 주소(`?account=`)나 본문(`accountId`)의 값을 쓰지 않고 세션의 계정으로만 자료를 고른다.
+- 세션에 계정이 들어가는 곳: `server/passkeys.js` 의 `/login/verify` — 서명 확인에 성공한 패스키의 `accountId` 로만 `startSession` 한다.
+- 패스키 지우기도 내 계정 것만: `server/passkeys.js` 의 `DELETE /api/passkeys/:id` 는 다른 계정의 패스키 ID면 404.
+
+---
+
+## 인증 구현 설명서
+
+### ① 무엇으로 붙였나
+**라이브러리**를 썼습니다. 서버는 `@simplewebauthn/server` 14, 브라우저는 `@simplewebauthn/browser` 14 (WebAuthn 표준). 인증 서비스(Auth0 등)는 쓰지 않았고, 질문 보관·세션·계정 구분은 직접 만들었습니다 (Node.js + Express 5).
+
+### ② 왜 그걸 골랐나
+- 서명 확인·공개키 형식 풀기(CBOR, COSE)는 직접 만들면 틀리기 쉬운 부분이라, 많이 쓰이는 라이브러리에 맡겼습니다.
+- 인증 서비스를 쓰면 질문이 어떻게 오가고 서버에 무엇이 저장되는지가 가려져서, 과제 목적(공개키·일회용 질문을 직접 보기)에 맞지 않았습니다.
+- 질문 보관·세션·계정 구분은 짧고 눈으로 확인할 수 있는 코드라 직접 만들었습니다.
+
+### ③ 어디를 어떻게 고쳤나 (네 흐름)
+| 흐름 | 지나는 곳 |
+|---|---|
+| 등록 | 화면 `public/app.js` 의 `register()` → `POST /api/register/options` (질문 만들고 `pendingChallenges` 에 보관) → 기기가 열쇠 쌍 생성 → `POST /api/register/verify` (서명·질문 확인, 공개키만 `server/store.js` 로 저장) — 모두 `server/passkeys.js` |
+| 로그인 | `POST /api/login/options` (새 질문) → 기기가 개인키로 서명 → `POST /api/login/verify` (저장된 공개키로 확인, 질문 폐기, 성공하면 `server/session.js` 의 `startSession(계정 ID)`) |
+| 로그아웃 | `POST /api/logout` → `server/session.js` 의 `endSession` (서버 세션 목록에서 지움) |
+| 비공개 자료 조회 | `GET /api/vault` → `server/session.js` 의 `requireLogin` (없으면 401) → `server/index.js` 에서 세션의 계정 자료만 응답 |
+
+### ④ 안 열리는 것을 확인한 기록
+| 확인 | 성공한 요청 | 거절된 요청 | 근거 |
+|---|---|---|---|
+| 로그인 없이 열기 | 로그인 뒤 `GET /api/vault` → 200 | 로그인 없이 `GET /api/vault` → 401 | 카드 1, 카드 3 |
+| 남의 패스키(계정)로 열기 | A로 `GET /api/vault` → 200 (A 자료) | A로 `GET /api/accounts/acc_f06e1af6/vault` → 403, B로 A 요청 → 403 | 카드 5 |
+| 이미 쓴 질문 재사용 | 새 질문에 서명 → `POST /api/login/verify` 200 | 같은 본문 다시 → 400 `challenge-expired-or-used` | 카드 3 |
+| 패스키 삭제 뒤 로그인 | 남은 패스키 B → 200 | 지운 패스키 A → 401 `unknown-credential` | 카드 4 |
+
+(로그인 없이 열기·질문 재사용·삭제 뒤 로그인은 가상 기기와 `localhost` 에서 확인한 기록이고, 계정 두 개 확인은 배포 주소에서 실제 휴대폰으로 했습니다.)
+
+### ⑤ AI와 나
+아래 "AI와 내 판단 3줄"과 같습니다.
+
+### ⑥ 아직 못 막은 것
+1. **초대 코드 하나를 모두가 같이 쓰고 만료가 없습니다.** 새 계정을 만드는 문지기가 `SETUP_CODE` 하나뿐이라, 이 값이 한 번 새면 누구든 새 계정을 계속 만들 수 있습니다. 작업 중 이 값이 대화 기록에 한 번 노출됐습니다. → 제출 뒤 Render 환경변수에서 값을 바꿔야 합니다.
+2. **무료 서버가 다시 켜지면 계정이 모두 사라집니다.** `data/store.json` 이 서버 디스크에 있어서 재시작·재배포 때 지워집니다. 그러면 계정이 0개인 처음 상태가 되고, 초대 코드를 아는 사람이 먼저 계정을 만들 수 있습니다.
+3. **로그인 시도 횟수 제한이 없습니다.** 초대 코드·일회용 코드는 5번 틀리면 막히지만, `POST /api/login/verify` 는 몇 번이고 보낼 수 있습니다 (서명이 없으면 통과는 못 하지만 서버를 바쁘게 만들 수 있음).
+4. **계정 ID가 화면과 주소에 그대로 보입니다.** 자료는 403으로 막히지만, 어떤 계정 ID가 있는지는 숨기지 않습니다.
+
+## 짧은 확인 방법
+1. **어디로 가나요:** https://passkey-gate-08.onrender.com (맨 아래 주황 점선 상자가 비공개 자리)
+2. **세 단계 안에 무엇을 하나요:** ① 첫 화면 소개를 본다 → ② 맨 아래까지 내린다 → ③ 브라우저 주소창에 `https://passkey-gate-08.onrender.com/api/vault` 를 열어 본다
+3. **무엇이 보이면 통과인가요:** 소개 페이지는 그대로 보이고, 주황 상자에는 "🔒 잠겨 있습니다"와 "로그인하지 않았습니다 (서버 응답 401)"만 보이며, ③에서 `{"error":"unauthorized"}` 가 나온다
+4. **안 될 때는 무엇이 보이나요:** 첫 접속은 서버가 깨어나느라 30초쯤 빈 화면일 수 있습니다. 그 뒤에도 주황 상자에 "서버에 연결하지 못했습니다"가 나오면 서버가 꺼진 것입니다.
+
+## AI와 내 판단 3줄
+1. **AI에게 맡긴 일:** 서버·화면 코드 작성, 계정 여러 개로 바꾸는 수정, 가상 기기 확인 스크립트, 증거 정리와 README 초안.
+2. **내가 직접 판단한 일:** (본인이 직접 적기 — 예: 학원 PC에 PIN이 막혀 휴대폰으로 계정 두 개를 만들기로 한 것, 실제 기기로 등록·로그인·거절 요청을 직접 해 본 것)
+3. **AI 말을 따르지 않은 일:** (본인이 직접 적기 — 예: 확인용 버튼을 따로 넣자는 제안을 받지 않고 주소를 직접 열어 확인한 것)
 
 ## 배포 (Render)
 
