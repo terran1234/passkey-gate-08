@@ -68,11 +68,14 @@
   function refresh() {
     return api('/api/status').then(function (s) {
       var st = s.data;
-      show('register-first', !st.registered);
+      show('register-first', !st.loggedIn);
       show('need-login', st.registered && !st.loggedIn);
       show('vault-locked', !st.loggedIn);
       show('vault-items', st.loggedIn);
+      show('form-memo', st.loggedIn);
+      show('account-line', st.loggedIn);
       show('passkey-manage', st.loggedIn);
+      if (st.loggedIn) $('account-line').textContent = '지금 들어온 계정: ' + st.account.name + ' (계정 ID ' + st.account.id + ')';
       if (!st.loggedIn) {
         $('invite-code').hidden = true; $('invite-code').textContent = '';
         $('vault-status').textContent = '로그인하지 않았습니다. 비공개 자료를 서버에 요청해 보면 거절됩니다.';
@@ -115,8 +118,18 @@
 
   $('form-first').addEventListener('submit', function (e) {
     e.preventDefault();
-    register({ name: $('in-name-first').value, setupCode: $('in-setup').value }, $('msg-first'), e.target.querySelector('button'))
+    register({ name: $('in-name-first').value, accountName: $('in-account-first').value, setupCode: $('in-setup').value }, $('msg-first'), e.target.querySelector('button'))
       .then(function () { $('in-setup').value = ''; });
+  });
+  $('form-memo').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var msg = $('msg-memo'); msg.className = 'form-msg'; msg.textContent = '';
+    api('/api/vault', { method: 'POST', body: { title: $('in-memo-title').value, body: $('in-memo-body').value } }).then(function (r) {
+      if (r.status !== 200) { msg.textContent = (r.data.message || '저장하지 못했습니다') + ' (' + r.status + ')'; return; }
+      msg.className = 'form-msg ok'; msg.textContent = '저장했습니다. 이 계정의 메모: ' + r.data.items.length + '개';
+      $('in-memo-title').value = ''; $('in-memo-body').value = '';
+      renderVault(r.data.items);
+    });
   });
   $('form-add').addEventListener('submit', function (e) {
     e.preventDefault();

@@ -70,7 +70,8 @@
   .panel{background:#fff; border:1px solid #fdba74; border-radius:10px; padding:20px 22px; margin-top:16px;}
   .panel h3{font-size:15px; margin-bottom:6px;}
   .panel-desc{font-size:13.5px; color:var(--ink-dim); margin-bottom:12px;}
-  .panel form{display:grid; gap:10px;}
+  .panel form, form.panel{display:grid; gap:10px;}
+  [hidden]{display:none !important;}
   .panel label{display:grid; gap:4px; font-size:13px; font-weight:600;}
   .panel input{font:inherit; font-weight:400; padding:9px 11px; border:1px solid var(--border); border-radius:8px;}
   .panel button{font:inherit; font-weight:700; padding:10px 14px; border:0; border-radius:8px; background:var(--accent); color:#fff; cursor:pointer;}
@@ -329,15 +330,25 @@
         <p class="lock-desc">이 자리의 내용은 이 페이지에 들어 있지 않습니다. 패스키로 들어가야 서버가 보내 줍니다.</p>
         <p id="vault-status" class="lock-status" role="status"></p>
       </div>
+      <p id="account-line" class="panel-desc" hidden></p>
       <ul id="vault-items" class="vault-items" hidden></ul>
+      <form id="form-memo" class="panel" autocomplete="off" hidden>
+        <h3>내 자리에 메모 더하기</h3>
+        <p class="panel-desc">지금 들어온 계정에만 저장됩니다. 실제 개인정보는 넣지 마세요.</p>
+        <label>제목 <input id="in-memo-title" type="text" maxlength="60" required></label>
+        <label>내용 <input id="in-memo-body" type="text" maxlength="300"></label>
+        <button type="submit">메모 저장</button>
+        <p id="msg-memo" class="form-msg" role="status"></p>
+      </form>
 
       <div id="register-first" class="panel" hidden>
-        <h3>처음 패스키 만들기</h3>
-        <p class="panel-desc">비밀번호는 없습니다. 이 기기가 열쇠 한 쌍을 만들고 공개키만 서버로 보냅니다. 처음 한 번은 서버 주인이 정한 <b>초대 코드</b>가 필요합니다.</p>
+        <h3>새 계정 만들기</h3>
+        <p class="panel-desc">비밀번호는 없습니다. 이 기기가 열쇠 한 쌍을 만들고 공개키만 서버로 보냅니다. 계정을 만들 때는 서버 주인이 정한 <b>초대 코드</b>가 필요합니다. 계정마다 비공개 자리가 따로 있습니다.</p>
         <form id="form-first" autocomplete="off">
           <label>초대 코드 <input id="in-setup" type="text" required autocomplete="off" autocapitalize="off" spellcheck="false"></label>
-          <label>패스키 이름 <input id="in-name-first" type="text" maxlength="40" placeholder="예: 내 노트북 Windows Hello" required></label>
-          <button type="submit">패스키 만들기</button>
+          <label>계정 이름 <input id="in-account-first" type="text" maxlength="40" placeholder="예: 계정 A" required></label>
+          <label>패스키 이름 <input id="in-name-first" type="text" maxlength="40" placeholder="예: 학원 PC Windows Hello" required></label>
+          <button type="submit">계정과 패스키 만들기</button>
         </form>
         <p id="msg-first" class="form-msg" role="status"></p>
       </div>
